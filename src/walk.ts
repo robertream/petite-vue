@@ -46,6 +46,29 @@ export const walk = (node: Node, ctx: Context): ChildNode | null | void => {
       }
     }
 
+    // v-using
+    if ((exp = checkAttr(el, 'v-using')) && exp !== '') {
+      const raw = evaluate(ctx.scope, exp)
+      if (raw && typeof raw === 'object') {
+        const unwrapped: Record<string, any> = {}
+        const disposes: (() => void)[] = []
+        for (const [key, val] of Object.entries(raw)) {
+          if (
+            Array.isArray(val) &&
+            val.length === 2 &&
+            typeof val[1] === 'function'
+          ) {
+            unwrapped[key] = val[0]
+            disposes.push(val[1])
+          } else {
+            unwrapped[key] = val
+          }
+        }
+        ctx = createScopedContext(ctx, unwrapped)
+        for (const d of disposes) ctx.cleanups.push(d)
+      }
+    }
+
     // v-once
     const hasVOnce = checkAttr(el, 'v-once') != null
     if (hasVOnce) {
